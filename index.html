@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Graphics Playground</title>
+  </head>
+  <body>
+    <!-- Sidebar for example selection -->
+    <aside id="sidebar">
+      <h1>Graphics Playground</h1>
+      <p class="subtitle">Learn shaders with Three.js</p>
+      <nav id="examples-nav"></nav>
+    </aside>
+
+    <!-- Main canvas area -->
+    <main id="canvas-container">
+      <canvas id="webgl-canvas"></canvas>
+
+      <!-- Performance stats -->
+      <div id="stats">
+        <span id="fps">FPS: 0</span>
+      </div>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
