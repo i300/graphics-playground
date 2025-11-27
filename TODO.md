@@ -145,6 +145,7 @@ This document tracks planned enhancements and future work for the graphics playg
 - [x] Auto-generated example-specific controls
 - [x] Control metadata type system (src/types/controls.d.ts)
 - [x] Settings persistence across example switches
+- [x] Fixed 2D examples to properly fill viewport on window resize using fixed 2x2 geometry
 
 ---
 

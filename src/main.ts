@@ -113,6 +113,11 @@ class App {
     window.addEventListener("resize", () => {
       this.camera.updateAspect();
       this.renderer.resize();
+
+      // Update current example if it has a resize method
+      if (this.currentExample && "resize" in this.currentExample) {
+        (this.currentExample as any).resize();
+      }
     });
   }
 

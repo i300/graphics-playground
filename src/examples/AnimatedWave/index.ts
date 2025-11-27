@@ -80,6 +80,23 @@ export class AnimatedWave {
   }
 
   /**
+   * Update geometry when window is resized
+   * Ensures the plane always fills the viewport
+   */
+  resize() {
+    const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+
+    // Calculate new dimensions
+    const width = aspect > 1 ? aspect * 2 : 2;
+    const height = aspect > 1 ? 2 : (1 / aspect) * 2;
+
+    // Dispose old geometry and create new one with same segments
+    this.mesh.geometry.dispose();
+    this.mesh.geometry = new THREE.PlaneGeometry(width, height, 32, 32);
+  }
+
+  /**
    * Clean up resources when switching examples
    */
   dispose() {

@@ -7,6 +7,7 @@ A beginner-friendly web-based playground for learning 2D and 3D shaders using Th
 - Live shader hot reload - see your changes instantly
 - Well-commented example shaders
 - Interactive examples with smooth animations
+- Responsive window resizing - examples automatically adjust to fit viewport
 - Modern development setup with Vite
 - TypeScript for better code completion and learning
 
@@ -153,7 +154,7 @@ mkdir src/examples/MyExample
 - `fragment.glsl` - Fragment shader
 - `index.ts` - Example class
 
-3. Example template (`index.ts`):
+3. Example template for 2D (`index.ts`):
 
 ```typescript
 import * as THREE from "three";
@@ -177,7 +178,13 @@ export class MyExample {
       side: THREE.DoubleSide,
     });
 
-    const geometry = new THREE.PlaneGeometry(2, 2, 32, 32);
+    // For 2D examples: calculate aspect-adjusted dimensions
+    const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+    const width = aspect > 1 ? aspect * 2 : 2;
+    const height = aspect > 1 ? 2 : (1 / aspect) * 2;
+    const geometry = new THREE.PlaneGeometry(width, height, 32, 32);
+
     this.mesh = new THREE.Mesh(geometry, material);
     scene.add(this.mesh);
   }
@@ -187,12 +194,25 @@ export class MyExample {
     this.uniforms.uTime.value = time;
   }
 
+  resize() {
+    // For 2D examples: update geometry on window resize
+    const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+    const width = aspect > 1 ? aspect * 2 : 2;
+    const height = aspect > 1 ? 2 : (1 / aspect) * 2;
+
+    this.mesh.geometry.dispose();
+    this.mesh.geometry = new THREE.PlaneGeometry(width, height, 32, 32);
+  }
+
   dispose() {
     this.mesh.geometry.dispose();
     (this.mesh.material as THREE.Material).dispose();
   }
 }
 ```
+
+> **Note:** For 3D examples, you don't need the aspect-adjusted geometry or resize() method. Just use standard geometry like `BoxGeometry` or `SphereGeometry`.
 
 4. Register your example in `src/examples/index.ts`:
 

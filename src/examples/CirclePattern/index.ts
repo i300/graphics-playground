@@ -17,6 +17,9 @@ import type { AnyControlConfig } from "../../types/controls";
  */
 export class CirclePattern {
   public mesh: THREE.Mesh;
+  private uniforms: {
+    uResolution: { value: THREE.Vector2 };
+  };
 
   /**
    * Control definitions for this example
@@ -32,21 +35,19 @@ export class CirclePattern {
     const aspect = width / height;
 
     // Create uniforms for aspect ratio correction
-    const uniforms = {
-      uResolution: { value: new THREE.Vector2(width, height) }
+    this.uniforms = {
+      uResolution: { value: new THREE.Vector2(width, height) },
     };
 
     // Create a ShaderMaterial with our custom shaders
     const material = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader,
-      uniforms: uniforms,
+      uniforms: this.uniforms,
       side: THREE.DoubleSide,
     });
 
     // Create a fullscreen quad that fills the orthographic camera view
-    // The orthographic camera adjusts its bounds based on aspect ratio
-    // so we need to match those bounds to fill the viewport
     const planeWidth = aspect > 1 ? aspect * 2 : 2;
     const planeHeight = aspect > 1 ? 2 : (1 / aspect) * 2;
     const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
@@ -62,6 +63,29 @@ export class CirclePattern {
    */
   update(_time: number) {
     // No animation in this example
+  }
+
+  /**
+   * Update geometry and resolution uniform when window is resized
+   * This ensures the plane fills the viewport and circles remain perfectly round
+   */
+  resize() {
+    const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+
+    // Update resolution uniform for aspect ratio correction in shader
+    this.uniforms.uResolution.value.set(
+      canvas.clientWidth,
+      canvas.clientHeight
+    );
+
+    // Calculate new dimensions
+    const width = aspect > 1 ? aspect * 2 : 2;
+    const height = aspect > 1 ? 2 : (1 / aspect) * 2;
+
+    // Dispose old geometry and create new one
+    this.mesh.geometry.dispose();
+    this.mesh.geometry = new THREE.PlaneGeometry(width, height);
   }
 
   /**

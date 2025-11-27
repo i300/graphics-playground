@@ -55,6 +55,8 @@ The app dynamically switches camera modes based on `ExampleConfig.is3D`:
 
 This happens in `App.loadExample()` after instantiating the new example.
 
+The camera's `updateAspect()` method is called on every window resize, automatically adjusting the orthographic frustum to maintain proper aspect ratio. All 2D examples implement a `resize()` method that the App class calls to update their geometry dimensions, ensuring they always fill the viewport. Examples can also use this to update uniforms or other state that depends on window size.
+
 ### Shader Hot Reload
 
 Powered by `vite-plugin-glsl` configuration in `vite.config.ts`:
@@ -85,8 +87,13 @@ export class ExampleName {
       side: THREE.DoubleSide,
     });
 
-    // Create geometry and mesh
-    const geometry = new THREE.PlaneGeometry(2, 2, 32, 32);
+    // Calculate aspect-adjusted dimensions for 2D examples
+    const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+    const width = aspect > 1 ? aspect * 2 : 2;
+    const height = aspect > 1 ? 2 : (1 / aspect) * 2;
+    const geometry = new THREE.PlaneGeometry(width, height, 32, 32);
+
     this.mesh = new THREE.Mesh(geometry, material);
     scene.add(this.mesh);
   }
@@ -96,6 +103,17 @@ export class ExampleName {
     if (this.uniforms.uTime) {
       this.uniforms.uTime.value = time;
     }
+  }
+
+  resize() {
+    // REQUIRED for 2D examples: Update geometry on window resize
+    const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
+    const aspect = canvas.clientWidth / canvas.clientHeight;
+    const width = aspect > 1 ? aspect * 2 : 2;
+    const height = aspect > 1 ? 2 : (1 / aspect) * 2;
+
+    this.mesh.geometry.dispose();
+    this.mesh.geometry = new THREE.PlaneGeometry(width, height, 32, 32);
   }
 
   dispose() {
@@ -122,7 +140,21 @@ export class ExampleName {
 
 ### Geometry for 2D Shaders
 
-Use `PlaneGeometry(2, 2)` for 2D shader examples. In orthographic mode (-1 to 1), this creates a fullscreen quad. Add segments for vertex displacement: `PlaneGeometry(2, 2, 32, 32)`.
+2D shader examples use aspect-ratio-adjusted PlaneGeometry to fill the viewport. Calculate dimensions based on the canvas aspect ratio:
+
+```typescript
+const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
+const aspect = canvas.clientWidth / canvas.clientHeight;
+const width = aspect > 1 ? aspect * 2 : 2;
+const height = aspect > 1 ? 2 : (1 / aspect) * 2;
+const geometry = new THREE.PlaneGeometry(width, height);
+```
+
+**Why aspect-adjusted?** The orthographic camera uses bounds of -1 to 1 vertically, and aspect-adjusted bounds horizontally (e.g., -1.78 to 1.78 for a 16:9 aspect). Matching the plane dimensions to these bounds ensures fullscreen coverage.
+
+**For vertex displacement**, add segments: `PlaneGeometry(width, height, 32, 32)`.
+
+**Responsive Resizing**: All 2D examples implement a `resize()` method to update geometry dimensions when the window resizes. This ensures the plane always fills the viewport. See any 2D example for the pattern.
 
 ### Uniform Updates
 
