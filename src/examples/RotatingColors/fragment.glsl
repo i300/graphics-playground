@@ -16,9 +16,22 @@ varying vec2 vUv;
 // Uniform for time-based animation
 uniform float uTime;
 
+// Resolution of the canvas (width, height)
+// Used to calculate aspect ratio for correct circle rendering
+uniform vec2 uResolution;
+
 void main() {
+  // Calculate aspect ratio to correct for non-square displays
+  // Without this, circles would appear stretched into ellipses
+  float aspect = uResolution.x / uResolution.y;
+
   // Center the coordinates (move origin to center of screen)
+  // vUv ranges from (0,0) to (1,1), so subtract 0.5 to get (-0.5,-0.5) to (0.5,0.5)
   vec2 center = vUv - 0.5;
+
+  // Apply aspect ratio correction to x-axis
+  // This ensures circular patterns stay circular on wide/narrow screens
+  center.x *= aspect;
 
   // Calculate angle from center using atan(y, x)
   // atan() returns angle in radians (-PI to PI)

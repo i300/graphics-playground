@@ -19,6 +19,7 @@ export class RotatingColors {
   public mesh: THREE.Mesh;
   private uniforms: {
     uTime: { value: number };
+    uResolution: { value: THREE.Vector2 };
   };
 
   /**
@@ -34,9 +35,16 @@ export class RotatingColors {
   ];
 
   constructor(scene: THREE.Scene) {
-    // Setup uniforms for time-based animation
+    const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
+
+    // Setup uniforms for time-based animation and aspect ratio correction
     this.uniforms = {
       uTime: { value: 0 },
+      // Pass resolution to shader for aspect ratio correction
+      // This prevents circular patterns from appearing stretched
+      uResolution: {
+        value: new THREE.Vector2(canvas.clientWidth, canvas.clientHeight),
+      },
     };
 
     // Create shader material with our custom shaders
@@ -48,7 +56,6 @@ export class RotatingColors {
     });
 
     // Calculate aspect ratio to size the plane correctly
-    const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
     const aspect = canvas.clientWidth / canvas.clientHeight;
 
     // Create a fullscreen quad that accounts for aspect ratio
@@ -76,6 +83,13 @@ export class RotatingColors {
   resize() {
     const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
     const aspect = canvas.clientWidth / canvas.clientHeight;
+
+    // Update resolution uniform so shader can recalculate aspect ratio
+    // This keeps circular patterns circular when window is resized
+    this.uniforms.uResolution.value.set(
+      canvas.clientWidth,
+      canvas.clientHeight
+    );
 
     // Calculate new dimensions
     const width = aspect > 1 ? aspect * 2 : 2;
