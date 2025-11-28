@@ -5,8 +5,10 @@ import agentSimFrag from "./shaders/agentSim.frag";
 import agentSimVert from "./shaders/agentSim.vert";
 import trailRenderVert from "./shaders/trailMap.vert";
 import trailRenderFrag from "./shaders/trailMap.frag";
-import trailDecayVert from "./shaders/trailDecay.vert";
-import trailDecayFrag from "./shaders/trailDecay.frag";
+import blurVert from "./shaders/blur.vert";
+import blurFrag from "./shaders/blur.frag";
+import copyVert from "./shaders/copy.vert";
+import copyFrag from "./shaders/copy.frag";
 import type { AnyControlConfig } from "../../types/controls";
 
 function createAgentRenderTarget(numAgents: number) {
@@ -49,6 +51,7 @@ export class Physarum {
     uStepSize: { value: number };
     uDepositAmount: { value: number };
     uDecayFactor: { value: number };
+    uDiffuseWeight: { value: number };
     uDebugMode: { value: number };
   };
 
@@ -64,9 +67,16 @@ export class Physarum {
   private trailRenderScene: THREE.Scene;
   private trailRenderMaterial: THREE.ShaderMaterial;
 
-  // Trail decay
-  private trailDecayScene: THREE.Scene;
-  private trailDecayMaterial: THREE.ShaderMaterial;
+  // Copy pass (to copy A to B before particles)
+  private copyScene: THREE.Scene;
+  private copyMaterial: THREE.ShaderMaterial;
+
+  // Blur + Decay pass (combined)
+  private blurScene: THREE.Scene;
+  private blurMaterial: THREE.ShaderMaterial;
+
+  // Delta time tracking
+  private lastTime: number = 0;
 
   /**
    * UI control definitions
@@ -120,7 +130,7 @@ export class Physarum {
       name: "Decay Factor",
       property: "uDecayFactor",
       type: "slider",
-      min: 0.8,
+      min: 0.0,
       max: 0.99,
       step: 0.01,
     },
@@ -133,6 +143,14 @@ export class Physarum {
       step: 1,
       // format: (value: number) =>
       //   ["Trails", "Particles", "Both"][Math.round(value)],
+    },
+    {
+      name: "Diffuse Weight",
+      property: "uDiffuseWeight",
+      type: "slider",
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
     },
   ];
 
@@ -151,13 +169,14 @@ export class Physarum {
     // Initialize default uniforms to be passed to all simulation shaders
     this.uniforms = {
       uResolution: { value: new THREE.Vector2(width, height) },
-      uNumAgents: { value: 1_000_000 }, // Texture size (e.g., 23 for 512 particles)
+      uNumAgents: { value: 10_000 }, // Texture size (e.g., 23 for 512 particles)
       uSensorAngle: { value: 22.5 * (Math.PI / 180) }, // 22.5 degrees in radians
       uSensorDistance: { value: 9.0 / 1024.0 }, // 9 pixels normalized
       uRotationAngle: { value: 45.0 * (Math.PI / 180) }, // 45 degrees in radians
       uStepSize: { value: 1.0 / 1024.0 }, // 1 pixel normalized
       uDepositAmount: { value: 5.0 }, // Trail intensity
-      uDecayFactor: { value: 0.9 }, // 90% retention per frame
+      uDecayFactor: { value: 0.2 }, // Decay rate per second
+      uDiffuseWeight: { value: 1.0 }, // Blur amount (0.0 = sharp, 1.0 = full blur)
       uDebugMode: { value: 0 }, // 0=trails, 1=particles, 2=both
     };
 
@@ -200,7 +219,7 @@ export class Physarum {
         uAgentState: { value: null },
         ...this.uniforms,
       },
-      blending: THREE.AdditiveBlending, // Particles add to trails
+      blending: THREE.AdditiveBlending, // Use additive since we copy A to B first
       depthTest: false,
       depthWrite: false,
     });
@@ -237,21 +256,39 @@ export class Physarum {
     this.renderer.clear();
     this.renderer.setRenderTarget(null);
 
-    // Initialize trail decay pass
-    this.trailDecayScene = new THREE.Scene();
-    this.trailDecayMaterial = new THREE.ShaderMaterial({
-      vertexShader: trailDecayVert,
-      fragmentShader: trailDecayFrag,
+    // Initialize copy pass (for copying A to B before particles)
+    this.copyScene = new THREE.Scene();
+    this.copyMaterial = new THREE.ShaderMaterial({
+      vertexShader: copyVert,
+      fragmentShader: copyFrag,
       uniforms: {
-        uPreviousTrail: { value: null },
-        uDecayFactor: { value: this.uniforms.uDecayFactor.value },
+        uTexture: { value: null },
       },
     });
-    const decayQuad = new THREE.Mesh(
+    const copyQuad = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
-      this.trailDecayMaterial
+      this.copyMaterial
     );
-    this.trailDecayScene.add(decayQuad);
+    this.copyScene.add(copyQuad);
+
+    // Initialize combined blur + decay pass
+    this.blurScene = new THREE.Scene();
+    this.blurMaterial = new THREE.ShaderMaterial({
+      vertexShader: blurVert,
+      fragmentShader: blurFrag,
+      uniforms: {
+        uTrailMap: { value: null },
+        uResolution: { value: new THREE.Vector2(width, height) },
+        uDecayFactor: { value: this.uniforms.uDecayFactor.value },
+        uDiffuseWeight: { value: this.uniforms.uDiffuseWeight.value },
+        uDeltaTime: { value: 0.016 }, // Initialize with ~60fps
+      },
+    });
+    const blurQuad = new THREE.Mesh(
+      new THREE.PlaneGeometry(2, 2),
+      this.blurMaterial
+    );
+    this.blurScene.add(blurQuad);
 
     // Create a fullscreen quad that fills the orthographic camera view
     const planeWidth = aspect > 1 ? aspect * 2 : 2;
@@ -284,7 +321,7 @@ export class Physarum {
     // Initialize particles randomly within a circle
     const centerX = 0.5;
     const centerY = 0.5;
-    const radius = 0.2; // Radius 0.5 fills the entire viewport
+    const radius = 0.5;
 
     for (let i = 0; i < numAgents; i++) {
       // Random angle for position
@@ -332,35 +369,43 @@ export class Physarum {
     ];
   }
 
-  trailMapStep() {
-    // Step 1: Apply decay to previous frame's trails
-    this.trailDecayMaterial.uniforms.uPreviousTrail.value =
-      this.trailRenderTargetA.texture;
-    this.trailDecayMaterial.uniforms.uDecayFactor.value =
-      this.uniforms.uDecayFactor.value;
-
-    this.renderer.autoClear = false;
+  trailMapStep(deltaTime: number) {
+    // Step 1: Copy A to B (so B has previous frame's trails)
+    this.copyMaterial.uniforms.uTexture.value = this.trailRenderTargetA.texture;
     this.renderer.setRenderTarget(this.trailRenderTargetB);
-    this.renderer.render(this.trailDecayScene, this.camera);
+    this.renderer.render(this.copyScene, this.camera);
 
-    // Step 2: Render particles on top with additive blending
+    // Step 2: Deposit particles on top of B (additive blending)
     this.trailRenderMaterial.uniforms.uAgentState.value =
       this.agentsRenderTargetA.texture;
-
+    this.renderer.autoClear = false; // Don't clear - we want to keep the copied trails
     this.renderer.render(this.trailRenderScene, this.camera);
-    this.renderer.setRenderTarget(null);
     this.renderer.autoClear = true;
 
-    // Step 3: Swap buffers for next frame
-    [this.trailRenderTargetA, this.trailRenderTargetB] = [
-      this.trailRenderTargetB,
-      this.trailRenderTargetA,
-    ];
+    // Step 3: Apply blur + decay to B, write to A
+    this.blurMaterial.uniforms.uTrailMap.value =
+      this.trailRenderTargetB.texture;
+    this.blurMaterial.uniforms.uDecayFactor.value =
+      this.uniforms.uDecayFactor.value;
+    this.blurMaterial.uniforms.uDiffuseWeight.value =
+      this.uniforms.uDiffuseWeight.value;
+    this.blurMaterial.uniforms.uDeltaTime.value = deltaTime;
+
+    this.renderer.setRenderTarget(this.trailRenderTargetA);
+    this.renderer.render(this.blurScene, this.camera);
+    this.renderer.setRenderTarget(null);
+
+    // Ping-pong: A → B → A
+    // Next frame will read from A again
   }
 
   update(time: number) {
+    // Calculate delta time
+    const deltaTime = this.lastTime === 0 ? 0.016 : time - this.lastTime;
+    this.lastTime = time;
+
     this.agentSimulationStep(time);
-    this.trailMapStep();
+    this.trailMapStep(deltaTime);
 
     // Update display with results of simulation
     this.renderer.setRenderTarget(null);
@@ -379,6 +424,12 @@ export class Physarum {
 
     // Update resolution uniform for aspect ratio correction in shader
     this.uniforms.uResolution.value.set(
+      canvas.clientWidth,
+      canvas.clientHeight
+    );
+
+    // Update blur shader resolution uniforms
+    this.blurMaterial.uniforms.uResolution.value.set(
       canvas.clientWidth,
       canvas.clientHeight
     );
@@ -404,7 +455,8 @@ export class Physarum {
     this.trailRenderTargetA.dispose();
     this.trailRenderTargetB.dispose();
 
-    this.trailDecayMaterial.dispose();
+    this.copyMaterial.dispose();
+    this.blurMaterial.dispose();
 
     // Remove mesh from scene first
     this.mesh.parent?.remove(this.mesh);

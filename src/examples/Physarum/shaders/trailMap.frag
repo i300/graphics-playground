@@ -1,5 +1,6 @@
 // Deposit Fragment Shader
 // Renders particle trails with smooth falloff
+// Uses additive blending - GPU adds this to existing trail
 
 uniform float uDepositAmount; // How much trail intensity to deposit
 
@@ -16,6 +17,6 @@ void main() {
   // Create smooth circular falloff (bright center, fades to edges)
   float intensity = (1.0 - d) * uDepositAmount;
 
-  // Output trail intensity (stored in R channel, same for G and B)
+  // Output particle intensity (additive blending adds this to trail)
   gl_FragColor = vec4(intensity, intensity, intensity, 1.0);
 }

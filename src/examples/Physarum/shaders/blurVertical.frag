@@ -2,34 +2,39 @@
 // Implements separable Gaussian blur (vertical pass) with decay
 
 uniform sampler2D uTrailMap;   // Trail map to blur (from horizontal pass)
-uniform float uDecayFactor;     // Decay factor (e.g., 0.9 = retain 90% per frame)
+uniform vec2 uResolution;       // Texture resolution (width, height)
 
 varying vec2 vUv;
 
 void main() {
   // Texel size - distance between adjacent pixels
-  vec2 texelSize = vec2(1.0 / 1024.0);
+  vec2 texelSize = 1.0 / uResolution;
 
-  // === VERTICAL BLUR ===
-  // Sample 3 vertical neighbors and apply Gaussian weights
+  // === GAUSSIAN BLUR (VERTICAL) ===
+  // 9-tap Gaussian blur with sigma=2.0
   // This completes the separable blur started in the horizontal pass
+  // Using the same weights for consistency
 
-  // Sample top neighbor (weight: 0.25)
-  vec3 blur = texture2D(uTrailMap, vUv - vec2(0.0, texelSize.y)).rgb * 0.25;
+  vec3 blur = vec3(0.0);
 
-  // Sample center pixel (weight: 0.5)
-  blur += texture2D(uTrailMap, vUv).rgb * 0.5;
+  // Center pixel (offset 0, weight: 0.227027)
+  blur += texture2D(uTrailMap, vUv).rgb * 0.227027;
 
-  // Sample bottom neighbor (weight: 0.25)
-  blur += texture2D(uTrailMap, vUv + vec2(0.0, texelSize.y)).rgb * 0.25;
+  // Offset ±1 pixels (weight: 0.194594)
+  blur += texture2D(uTrailMap, vUv - vec2(0.0, texelSize.y * 1.0)).rgb * 0.194594;
+  blur += texture2D(uTrailMap, vUv + vec2(0.0, texelSize.y * 1.0)).rgb * 0.194594;
 
-  // === DECAY ===
-  // Apply decay factor again
-  // Since we decay in both passes, the effective decay per frame is:
-  // effectiveDecay = decayFactor * decayFactor
-  // For decayFactor = 0.9, effective decay = 0.81
-  // This is intentional and can be adjusted
-  blur *= uDecayFactor;
+  // Offset ±2 pixels (weight: 0.121622)
+  blur += texture2D(uTrailMap, vUv - vec2(0.0, texelSize.y * 2.0)).rgb * 0.121622;
+  blur += texture2D(uTrailMap, vUv + vec2(0.0, texelSize.y * 2.0)).rgb * 0.121622;
+
+  // Offset ±3 pixels (weight: 0.054054)
+  blur += texture2D(uTrailMap, vUv - vec2(0.0, texelSize.y * 3.0)).rgb * 0.054054;
+  blur += texture2D(uTrailMap, vUv + vec2(0.0, texelSize.y * 3.0)).rgb * 0.054054;
+
+  // Offset ±4 pixels (weight: 0.016216)
+  blur += texture2D(uTrailMap, vUv - vec2(0.0, texelSize.y * 4.0)).rgb * 0.016216;
+  blur += texture2D(uTrailMap, vUv + vec2(0.0, texelSize.y * 4.0)).rgb * 0.016216;
 
   gl_FragColor = vec4(blur, 1.0);
 }
