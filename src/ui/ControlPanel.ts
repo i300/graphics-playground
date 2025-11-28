@@ -6,6 +6,7 @@ import type {
   ColorControlConfig,
   ToggleControlConfig,
   ReadonlyControlConfig,
+  ButtonControlConfig,
   ViewMode,
 } from "../types/controls";
 
@@ -83,7 +84,16 @@ export class ControlPanel {
    * Add a control based on configuration
    */
   private addControl(config: AnyControlConfig) {
-    if (!this.exampleFolder || !this.currentExample?.uniforms) return;
+    if (!this.exampleFolder) return;
+
+    // Button controls don't need uniforms
+    if (config.type === "button") {
+      this.addButtonControl(config as ButtonControlConfig);
+      return;
+    }
+
+    // All other controls require uniforms
+    if (!this.currentExample?.uniforms) return;
 
     const uniform = this.currentExample.uniforms[config.property];
     if (!uniform) {
@@ -166,6 +176,23 @@ export class ControlPanel {
         controller.name(config.format!(value));
       });
     }
+  }
+
+  /**
+   * Add button control for triggering actions
+   */
+  private addButtonControl(config: ButtonControlConfig) {
+    // Determine the callback: use explicit callback or look for method on example
+    const callback =
+      config.callback ||
+      (this.currentExample?.[config.property]?.bind(this.currentExample));
+
+    if (!callback) {
+      console.warn(`Button callback not found for ${config.property}`);
+      return;
+    }
+
+    this.exampleFolder!.add({ action: callback }, "action").name(config.name);
   }
 
   /**

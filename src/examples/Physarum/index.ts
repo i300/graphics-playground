@@ -127,6 +127,14 @@ export class Physarum {
       // format: (value: number) => `${(value * 1024).toFixed(1)} px`,
     },
     {
+      name: "Diffuse Weight",
+      property: "uDiffuseWeight",
+      type: "slider",
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+    },
+    {
       name: "Decay Factor",
       property: "uDecayFactor",
       type: "slider",
@@ -145,12 +153,9 @@ export class Physarum {
       //   ["Trails", "Particles", "Both"][Math.round(value)],
     },
     {
-      name: "Diffuse Weight",
-      property: "uDiffuseWeight",
-      type: "slider",
-      min: 0.0,
-      max: 1.0,
-      step: 0.01,
+      name: "Reset Simulation",
+      property: "resetSimulation",
+      type: "button",
     },
   ];
 
@@ -412,6 +417,37 @@ export class Physarum {
     this.material.uniforms.uAgentState.value = this.agentsRenderTargetA.texture;
     this.material.uniforms.uTrailMap.value = this.trailRenderTargetA.texture;
     this.material.uniforms.uDebugMode.value = this.uniforms.uDebugMode.value;
+  }
+
+  /**
+   * Reset the simulation to initial state
+   * Preserves user-configured control values
+   */
+  public resetSimulation() {
+    // Dispose old agent texture to prevent memory leak
+    const oldTexture = this.agentSimMaterial.uniforms.uAgentState.value;
+    if (oldTexture) {
+      oldTexture.dispose();
+    }
+
+    // Reinitialize agents with fresh random positions
+    const newAgentsTexture = this.initializeAgents();
+    this.agentSimMaterial.uniforms.uAgentState.value = newAgentsTexture;
+
+    // Re-render the initial agent state to agentsRenderTargetA
+    this.renderer.setRenderTarget(this.agentsRenderTargetA);
+    this.renderer.render(this.agentSimScene, this.camera);
+    this.renderer.setRenderTarget(null);
+
+    // Clear both trail render targets to black
+    this.renderer.setRenderTarget(this.trailRenderTargetA);
+    this.renderer.clear();
+    this.renderer.setRenderTarget(this.trailRenderTargetB);
+    this.renderer.clear();
+    this.renderer.setRenderTarget(null);
+
+    // Reset time tracking for delta time calculations
+    this.lastTime = 0;
   }
 
   /**

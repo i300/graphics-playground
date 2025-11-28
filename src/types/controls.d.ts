@@ -15,7 +15,7 @@ export interface ControlConfig {
 /**
  * Types of controls supported
  */
-export type ControlType = "slider" | "color" | "toggle" | "readonly";
+export type ControlType = "slider" | "color" | "toggle" | "readonly" | "button";
 
 /**
  * Slider control for numeric uniforms
@@ -50,13 +50,22 @@ export interface ReadonlyControlConfig extends ControlConfig {
 }
 
 /**
+ * Button control for triggering actions
+ */
+export interface ButtonControlConfig extends ControlConfig {
+  type: "button";
+  callback?: () => void; // Optional - if not provided, looks for method on example
+}
+
+/**
  * Union type for all control configurations
  */
 export type AnyControlConfig =
   | SliderControlConfig
   | ColorControlConfig
   | ToggleControlConfig
-  | ReadonlyControlConfig;
+  | ReadonlyControlConfig
+  | ButtonControlConfig;
 
 /**
  * View mode options
