@@ -95,8 +95,8 @@ export class Physarum {
       property: "uSensorAngle",
       type: "slider",
       min: 0,
-      max: 90,
-      step: 1,
+      max: Math.PI / 4,
+      step: 0.01,
       // format: (value: number) => `${Math.round(value * (180 / Math.PI))}°`,
     },
     {
@@ -113,16 +113,16 @@ export class Physarum {
       property: "uRotationAngle",
       type: "slider",
       min: 0,
-      max: 90,
-      step: 1,
+      max: Math.PI / 4,
+      step: 0.01,
       // format: (value: number) => `${Math.round(value * (180 / Math.PI))}°`,
     },
     {
       name: "Step Size",
       property: "uStepSize",
       type: "slider",
-      min: 0.1,
-      max: 5,
+      min: 0,
+      max: 100,
       step: 0.1,
       // format: (value: number) => `${(value * 1024).toFixed(1)} px`,
     },
@@ -139,7 +139,7 @@ export class Physarum {
       property: "uDecayFactor",
       type: "slider",
       min: 0.0,
-      max: 0.99,
+      max: 1.0,
       step: 0.01,
     },
     {
@@ -174,13 +174,13 @@ export class Physarum {
     // Initialize default uniforms to be passed to all simulation shaders
     this.uniforms = {
       uResolution: { value: new THREE.Vector2(width, height) },
-      uNumAgents: { value: 10_000 }, // Texture size (e.g., 23 for 512 particles)
+      uNumAgents: { value: 250_000 }, // Texture size (e.g., 23 for 512 particles)
       uSensorAngle: { value: 22.5 * (Math.PI / 180) }, // 22.5 degrees in radians
-      uSensorDistance: { value: 9.0 / 1024.0 }, // 9 pixels normalized
+      uSensorDistance: { value: 9.0 },
       uRotationAngle: { value: 45.0 * (Math.PI / 180) }, // 45 degrees in radians
-      uStepSize: { value: 1.0 / 1024.0 }, // 1 pixel normalized
+      uStepSize: { value: 20.0 },
       uDepositAmount: { value: 5.0 }, // Trail intensity
-      uDecayFactor: { value: 0.2 }, // Decay rate per second
+      uDecayFactor: { value: 0.2 }, // Color retention per second (1.0=no decay, 0.0=instant)
       uDiffuseWeight: { value: 1.0 }, // Blur amount (0.0 = sharp, 1.0 = full blur)
       uDebugMode: { value: 0 }, // 0=trails, 1=particles, 2=both
     };
@@ -195,6 +195,7 @@ export class Physarum {
         uAgentState: { value: initialAgentsTexture },
         uTrailMap: { value: null },
         uTime: { value: 0 },
+        uDeltaTime: { value: 0.016 },
         ...this.uniforms,
       },
       vertexShader: agentSimVert,
@@ -326,7 +327,7 @@ export class Physarum {
     // Initialize particles randomly within a circle
     const centerX = 0.5;
     const centerY = 0.5;
-    const radius = 0.5;
+    const radius = 0.1;
 
     for (let i = 0; i < numAgents; i++) {
       // Random angle for position
@@ -357,12 +358,13 @@ export class Physarum {
     return texture;
   }
 
-  agentSimulationStep(time: number) {
+  agentSimulationStep(time: number, dt: number) {
     this.agentSimMaterial.uniforms.uAgentState.value =
       this.agentsRenderTargetA.texture;
     this.agentSimMaterial.uniforms.uTrailMap.value =
       this.trailRenderTargetA.texture;
     this.agentSimMaterial.uniforms.uTime.value = time;
+    this.agentSimMaterial.uniforms.uDeltaTime.value = dt;
 
     this.renderer.setRenderTarget(this.agentsRenderTargetB);
     this.renderer.render(this.agentSimScene, this.camera);
@@ -409,7 +411,7 @@ export class Physarum {
     const deltaTime = this.lastTime === 0 ? 0.016 : time - this.lastTime;
     this.lastTime = time;
 
-    this.agentSimulationStep(time);
+    this.agentSimulationStep(time, deltaTime);
     this.trailMapStep(deltaTime);
 
     // Update display with results of simulation

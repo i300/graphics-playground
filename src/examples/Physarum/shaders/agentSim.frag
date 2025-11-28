@@ -1,13 +1,15 @@
 // Particle Update Fragment Shader
 // Implements the SENSE-ROTATE-MOVE algorithm for Physarum particles
 
-uniform sampler2D uAgentState;  // Current particle positions/angles
+uniform sampler2D uAgentState;     // Current particle positions/angles
 uniform sampler2D uTrailMap;       // Current trail intensities
+uniform vec2 uResolution;          // Trail map resolution (width, height)
 uniform float uSensorAngle;        // Sensor angle in radians (default: ~22.5°)
-uniform float uSensorDistance;     // Sensor distance (normalized)
+uniform float uSensorDistance;     // Sensor distance in pixels
 uniform float uRotationAngle;      // Rotation angle in radians (default: ~45°)
-uniform float uStepSize;           // Movement step size (normalized)
+uniform float uStepSize;           // Movement step size in pixels
 uniform float uTime;               // For randomness seed
+uniform float uDeltaTime;          // Delta time
 
 varying vec2 vUv;
 
@@ -47,7 +49,8 @@ void main() {
   vec2 forward = vec2(cos(angle), sin(angle));
 
   // Position the sensor ahead of the particle
-  vec2 sensorOffset = forward * uSensorDistance;
+  // Convert sensor distance from pixels to normalized [0,1] space
+  vec2 sensorOffset = forward * (uSensorDistance / uResolution.x);
 
   // Calculate the three sensor positions:
   // LEFT:  Rotated counterclockwise by sensorAngle
@@ -95,8 +98,9 @@ void main() {
 
   // === MOVE: Calculate new position ===
   // Move forward in the new heading direction
+  // Convert step size from pixels to normalized [0,1] space
   vec2 direction = vec2(cos(newAngle), sin(newAngle));
-  vec2 newPos = pos + direction * uStepSize;
+  vec2 newPos = pos + direction * (uStepSize / uResolution.x) * uDeltaTime;
 
   // Wrap position to toroidal space [0,1]
   // This creates seamless wrapping at edges

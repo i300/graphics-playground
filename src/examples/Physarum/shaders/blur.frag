@@ -3,7 +3,7 @@
 
 uniform sampler2D uTrailMap;   // Trail map to blur
 uniform vec2 uResolution;       // Texture resolution (width, height)
-uniform float uDecayFactor;     // Decay rate per second (e.g., 0.5 = fade by 0.5 per second)
+uniform float uDecayFactor;     // Retention factor per second (1.0 = no decay, 0.0 = instant decay)
 uniform float uDeltaTime;       // Time since last frame in seconds
 uniform float uDiffuseWeight;   // How much blur to apply (0.0 = no blur, 1.0 = full blur)
 
@@ -39,11 +39,15 @@ void main() {
 
   // Lerp between original (center pixel) and blurred based on diffuse weight
   vec3 original = texture2D(uTrailMap, vUv).rgb;
-  vec3 diffused = mix(original, blur, uDiffuseWeight);
+  
+  float diffuseWeight = clamp(uDiffuseWeight * uDeltaTime, 0.0, 1.0);
+	vec3 blurred = original * (1.0 - diffuseWeight) + blur * (diffuseWeight);
 
-  // Apply framerate-independent decay to the diffused result
-  // Decay is scaled by delta time so it's consistent regardless of framerate
-  vec3 finalColor = max(vec3(0.0), diffused - vec3(uDecayFactor * uDeltaTime));
+  // Apply framerabte-independent exponential decay to the diffused result
+  // uDecayFactor represents color retention per second (1.0 = retain 100%, 0.0 = retain 0%)
+  // Using exponential decay: color *= decayFactor^deltaTime
+  // This is intuitive: decay=0.99 means retain 99% per second (slow fade), decay=0.1 means retain 10% per second (fast fade)
+  vec3 finalColor = blurred * pow(uDecayFactor, uDeltaTime);
 
   gl_FragColor = vec4(finalColor, 1.0);
 }
