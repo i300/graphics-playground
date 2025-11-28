@@ -17,13 +17,15 @@ import type { AnyControlConfig } from "../../types/controls";
  */
 export class RotatingCube {
   public mesh: THREE.Mesh;
+  private renderer: THREE.WebGLRenderer;
 
   /**
    * Control definitions for this example
    */
   static controls: AnyControlConfig[] = [];
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    this.renderer = renderer;
     // Create shader material with custom shaders
     const material = new THREE.ShaderMaterial({
       vertexShader,

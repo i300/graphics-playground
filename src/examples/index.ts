@@ -11,6 +11,7 @@ import { CirclePattern } from "./CirclePattern";
 import { RotatingColors } from "./RotatingColors";
 import { RotatingCube } from "./RotatingCube";
 import { PulsingSphere } from "./PulsingSphere";
+import { Physarum } from "./Physarum";
 
 /**
  * Example configuration interface
@@ -75,5 +76,13 @@ export const exampleList: ExampleConfig[] = [
       "Animated 3D sphere. Learn vertex displacement, lighting, and combined effects.",
     Example: PulsingSphere,
     is3D: true,
+  },
+  {
+    id: "physarum",
+    name: "Physarum Simulation",
+    description:
+      "Slime mold transport networks. Learn multi-pass rendering, ping-pong buffers, and GPU compute patterns.",
+    Example: Physarum,
+    is3D: false,
   },
 ];

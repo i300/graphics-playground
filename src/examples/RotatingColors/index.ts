@@ -17,6 +17,7 @@ import type { AnyControlConfig } from "../../types/controls";
  */
 export class RotatingColors {
   public mesh: THREE.Mesh;
+  private renderer: THREE.WebGLRenderer;
   private uniforms: {
     uTime: { value: number };
     uResolution: { value: THREE.Vector2 };
@@ -34,8 +35,12 @@ export class RotatingColors {
     },
   ];
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    this.renderer = renderer;
     const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
+
+    // Calculate aspect ratio
+    const aspect = canvas.clientWidth / canvas.clientHeight;
 
     // Setup uniforms for time-based animation and aspect ratio correction
     this.uniforms = {
@@ -54,9 +59,6 @@ export class RotatingColors {
       uniforms: this.uniforms,
       side: THREE.DoubleSide,
     });
-
-    // Calculate aspect ratio to size the plane correctly
-    const aspect = canvas.clientWidth / canvas.clientHeight;
 
     // Create a fullscreen quad that accounts for aspect ratio
     const width = aspect > 1 ? aspect * 2 : 2;

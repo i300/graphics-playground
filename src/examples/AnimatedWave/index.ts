@@ -17,6 +17,7 @@ import type { AnyControlConfig } from "../../types/controls";
  */
 export class AnimatedWave {
   public mesh: THREE.Mesh;
+  private renderer: THREE.WebGLRenderer;
   private uniforms: {
     uTime: { value: number };
   };
@@ -34,7 +35,8 @@ export class AnimatedWave {
     },
   ];
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    this.renderer = renderer;
     // Setup uniforms - these are values we can update from JavaScript
     // They're passed to the shader and stay the same for all vertices/fragments in a single render
     this.uniforms = {

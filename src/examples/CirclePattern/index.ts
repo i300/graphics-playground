@@ -17,6 +17,7 @@ import type { AnyControlConfig } from "../../types/controls";
  */
 export class CirclePattern {
   public mesh: THREE.Mesh;
+  private renderer: THREE.WebGLRenderer;
   private uniforms: {
     uResolution: { value: THREE.Vector2 };
   };
@@ -27,7 +28,8 @@ export class CirclePattern {
    */
   static controls: AnyControlConfig[] = [];
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    this.renderer = renderer;
     // Get canvas dimensions for aspect ratio correction in shader
     const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
     const width = canvas.clientWidth;

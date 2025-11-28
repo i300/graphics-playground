@@ -18,6 +18,7 @@ import type { AnyControlConfig } from "../../types/controls";
  */
 export class PulsingSphere {
   public mesh: THREE.Mesh;
+  private renderer: THREE.WebGLRenderer;
   private uniforms: {
     uTime: { value: number };
   };
@@ -34,7 +35,8 @@ export class PulsingSphere {
     },
   ];
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    this.renderer = renderer;
     // Setup uniforms for time-based animation
     this.uniforms = {
       uTime: { value: 0 },

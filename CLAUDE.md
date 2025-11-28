@@ -37,7 +37,7 @@ The application follows a coordinated initialization pattern in `src/main.ts`:
 
 2. **Example System** - Registry-based architecture:
    - `src/examples/index.ts` exports `exampleList` array with all examples
-   - Each example is a class with `constructor(scene)`, `update(time)`, and `dispose()` methods
+   - Each example is a class with `constructor(scene, renderer)`, `update(time)`, and `dispose()` methods
    - The `App` class instantiates examples dynamically and cleans up previous instances
 
 3. **Render Loop** - Single requestAnimationFrame loop:
@@ -72,10 +72,12 @@ Each example follows a strict interface pattern:
 
 ```typescript
 export class ExampleName {
-  private mesh: THREE.Mesh;
+  public mesh: THREE.Mesh;
+  private renderer: THREE.WebGLRenderer;
   private uniforms: any; // Optional, for animated examples
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    this.renderer = renderer;
     // Setup uniforms if needed
     this.uniforms = { uTime: { value: 0 } };
 
@@ -135,6 +137,98 @@ export class ExampleName {
   is3D: false               // Controls camera/controls mode
 }
 ```
+
+## Advanced Examples & Multi-Pass Rendering
+
+### Constructor Signature Update
+
+As of the Physarum example, all examples now receive both `scene` and `renderer` parameters:
+
+```typescript
+constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer)
+```
+
+**Why?** Advanced techniques like multi-pass rendering, post-processing, and render-to-texture require direct access to the WebGLRenderer to call `renderer.setRenderTarget()`. This change makes the renderer available to all examples for future extensibility.
+
+**For simple examples**: The renderer parameter can be stored but doesn't need to be used. Most examples will continue to work with just the scene.
+
+### Multi-Pass Rendering Pattern
+
+The Physarum example introduces multi-pass rendering, where multiple render passes feed into each other:
+
+**Key Concepts**:
+
+1. **WebGLRenderTarget**: Render to texture instead of the screen
+2. **Ping-pong buffers**: Two render targets that swap roles each frame (read ↔ write)
+3. **Feedback loops**: Output from frame N becomes input for frame N+1
+
+**Example structure**:
+
+```typescript
+export class AdvancedExample {
+  private renderer: THREE.WebGLRenderer;
+  private renderTargetA: THREE.WebGLRenderTarget;
+  private renderTargetB: THREE.WebGLRenderTarget;
+  private readTarget: THREE.WebGLRenderTarget;
+  private writeTarget: THREE.WebGLRenderTarget;
+
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    this.renderer = renderer;
+
+    // Create render targets for ping-pong
+    this.renderTargetA = new THREE.WebGLRenderTarget(size, size, options);
+    this.renderTargetB = new THREE.WebGLRenderTarget(size, size, options);
+    this.readTarget = this.renderTargetA;
+    this.writeTarget = this.renderTargetB;
+  }
+
+  update(time: number) {
+    // Pass 1: Render to texture
+    this.renderer.setRenderTarget(this.writeTarget);
+    this.material.uniforms.uPreviousFrame.value = this.readTarget.texture;
+    this.renderer.render(this.scene1, this.camera);
+
+    // Pass 2: Render to screen
+    this.renderer.setRenderTarget(null);
+    this.displayMaterial.uniforms.uTexture.value = this.writeTarget.texture;
+    this.renderer.render(this.scene2, this.camera);
+
+    // Swap buffers
+    [this.readTarget, this.writeTarget] = [this.writeTarget, this.readTarget];
+  }
+
+  dispose() {
+    this.renderTargetA.dispose();
+    this.renderTargetB.dispose();
+    // ... dispose other resources
+  }
+}
+```
+
+**Important notes**:
+
+- Always reset render target to `null` before final display pass
+- Dispose of all render targets in `dispose()` method
+- Use `NearestFilter` for data textures, `LinearFilter` for visual textures
+- Consider using `THREE.FloatType` for high-precision data
+
+### GPU-Based Particle Systems
+
+The Physarum example demonstrates GPU particle systems using DataTexture:
+
+**Pattern**:
+
+1. Store particle data in a texture (e.g., 1024×1024 = 1M particles)
+2. Update particle positions using fragment shaders (GPU parallel processing)
+3. Read particle data in vertex shaders to position geometry
+
+**Benefits**:
+
+- Millions of particles updated in parallel on GPU
+- No CPU ↔ GPU data transfer bottleneck
+- Feedback loops create emergent behavior
+
+**See**: `src/examples/Physarum/` for complete implementation
 
 ## Key Implementation Details
 

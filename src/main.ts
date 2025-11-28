@@ -81,7 +81,10 @@ class App {
     }
 
     // Create new example instance
-    this.currentExample = new exampleConfig.Example(this.scene.scene);
+    this.currentExample = new exampleConfig.Example(
+      this.scene.scene,
+      this.renderer.renderer
+    );
 
     // Rebuild control panel for new example
     const ExampleClass = exampleConfig.Example;

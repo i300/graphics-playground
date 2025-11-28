@@ -16,6 +16,7 @@ import type { AnyControlConfig } from "../../types/controls";
  */
 export class BasicGradient {
   public mesh: THREE.Mesh;
+  private renderer: THREE.WebGLRenderer;
 
   /**
    * Control definitions for this example
@@ -23,7 +24,8 @@ export class BasicGradient {
    */
   static controls: AnyControlConfig[] = [];
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer) {
+    this.renderer = renderer;
     // Create a ShaderMaterial with our custom shaders
     // ShaderMaterial allows us to write custom GLSL code
     const material = new THREE.ShaderMaterial({
