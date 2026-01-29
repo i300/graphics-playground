@@ -146,6 +146,7 @@ This document tracks planned enhancements and future work for the graphics playg
 - [x] Control metadata type system (src/types/controls.d.ts)
 - [x] Settings persistence across example switches
 - [x] Fixed 2D examples to properly fill viewport on window resize using fixed 2x2 geometry
+- [x] GitHub Pages deployment with automated CI/CD workflow
 
 ---
 

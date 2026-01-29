@@ -11,6 +11,14 @@ import copyVert from "./shaders/copy.vert";
 import copyFrag from "./shaders/copy.frag";
 import type { AnyControlConfig } from "../../types/controls";
 
+type InitializationPattern =
+  | "circle"
+  | "random"
+  | "spiral"
+  | "clusters"
+  | "explosion"
+  | "inwardRing";
+
 function createAgentRenderTarget(numAgents: number) {
   const size = Math.ceil(Math.sqrt(numAgents));
   return new THREE.WebGLRenderTarget(size, size, {
@@ -87,7 +95,7 @@ export class Physarum {
       property: "uNumAgents",
       type: "slider",
       min: 4,
-      max: 1024,
+      max: 1_000_000,
       step: 1,
     },
     {
@@ -153,8 +161,33 @@ export class Physarum {
       //   ["Trails", "Particles", "Both"][Math.round(value)],
     },
     {
-      name: "Reset Simulation",
-      property: "resetSimulation",
+      name: "Circle Pattern",
+      property: "initCircle",
+      type: "button",
+    },
+    {
+      name: "Random Pattern",
+      property: "initRandom",
+      type: "button",
+    },
+    {
+      name: "Spiral Pattern",
+      property: "initSpiral",
+      type: "button",
+    },
+    {
+      name: "Multiple Clusters",
+      property: "initClusters",
+      type: "button",
+    },
+    {
+      name: "Explosion Pattern",
+      property: "initExplosion",
+      type: "button",
+    },
+    {
+      name: "Inward Ring",
+      property: "initInwardRing",
       type: "button",
     },
   ];
@@ -316,7 +349,7 @@ export class Physarum {
     scene.add(this.mesh);
   }
 
-  initializeAgents() {
+  initializeAgents(pattern: InitializationPattern = "circle") {
     const numAgents = this.uniforms.uNumAgents.value; // Number of active particles
     const textureSize = Math.ceil(Math.sqrt(numAgents)); // Texture dimensions
 
@@ -324,26 +357,26 @@ export class Physarum {
     // This may be larger than numAgents (e.g., 512 agents needs 23×23 = 529 texels)
     const data = new Float32Array(textureSize * textureSize * 4);
 
-    // Initialize particles randomly within a circle
-    const centerX = 0.5;
-    const centerY = 0.5;
-    const radius = 0.1;
-
-    for (let i = 0; i < numAgents; i++) {
-      // Random angle for position
-      const angle = Math.random() * Math.PI * 2;
-      const r = radius * Math.sqrt(Math.random()); // sqrt for uniform density
-
-      // Position (R, G channels)
-      data[i * 4 + 0] = centerX + r * Math.cos(angle);
-      data[i * 4 + 1] = centerY + r * Math.sin(angle);
-
-      // Random heading direction (B channel)
-      const randomDirection = Math.random(); // Random angle in [0,1] range
-      data[i * 4 + 2] = randomDirection;
-
-      // Reserved (A channel)
-      data[i * 4 + 3] = 1.0;
+    // Dispatch to pattern-specific initializer
+    switch (pattern) {
+      case "circle":
+        this.initializeCircle(data, numAgents);
+        break;
+      case "random":
+        this.initializeRandom(data, numAgents);
+        break;
+      case "spiral":
+        this.initializeSpiral(data, numAgents);
+        break;
+      case "clusters":
+        this.initializeClusters(data, numAgents);
+        break;
+      case "explosion":
+        this.initializeExplosion(data, numAgents);
+        break;
+      case "inwardRing":
+        this.initializeInwardRing(data, numAgents);
+        break;
     }
 
     // Create DataTexture from particle data
@@ -356,6 +389,133 @@ export class Physarum {
     );
     texture.needsUpdate = true;
     return texture;
+  }
+
+  /**
+   * Initialize agents in a circle at center with random headings
+   */
+  private initializeCircle(data: Float32Array, numAgents: number) {
+    const centerX = 0.5;
+    const centerY = 0.5;
+    const radius = 0.1;
+
+    for (let i = 0; i < numAgents; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const r = radius * Math.sqrt(Math.random()); // sqrt for uniform density
+
+      data[i * 4 + 0] = centerX + r * Math.cos(angle);
+      data[i * 4 + 1] = centerY + r * Math.sin(angle);
+      data[i * 4 + 2] = Math.random(); // random heading
+      data[i * 4 + 3] = 1.0;
+    }
+  }
+
+  /**
+   * Initialize agents randomly across entire canvas with random headings
+   */
+  private initializeRandom(data: Float32Array, numAgents: number) {
+    for (let i = 0; i < numAgents; i++) {
+      data[i * 4 + 0] = Math.random(); // x: full canvas
+      data[i * 4 + 1] = Math.random(); // y: full canvas
+      data[i * 4 + 2] = Math.random(); // random heading
+      data[i * 4 + 3] = 1.0;
+    }
+  }
+
+  /**
+   * Initialize agents in an Archimedean spiral from center with tangent headings
+   */
+  private initializeSpiral(data: Float32Array, numAgents: number) {
+    const centerX = 0.5;
+    const centerY = 0.5;
+    const spiralTightness = 0.05;
+    const spiralTurns = 3;
+
+    for (let i = 0; i < numAgents; i++) {
+      const t = i / numAgents;
+      const theta = t * spiralTurns * Math.PI * 2;
+      const r = spiralTightness * theta;
+
+      data[i * 4 + 0] = centerX + r * Math.cos(theta);
+      data[i * 4 + 1] = centerY + r * Math.sin(theta);
+
+      // Heading tangent to spiral (perpendicular to radius)
+      const headingAngle = (theta + Math.PI / 2) / (Math.PI * 2);
+      data[i * 4 + 2] = headingAngle % 1.0;
+      data[i * 4 + 3] = 1.0;
+    }
+  }
+
+  /**
+   * Initialize agents in multiple clusters scattered across canvas
+   */
+  private initializeClusters(data: Float32Array, numAgents: number) {
+    const numClusters = 5;
+    const clusterRadius = 0.08;
+    const clusterCenters = [
+      { x: 0.2, y: 0.2 },
+      { x: 0.8, y: 0.2 },
+      { x: 0.5, y: 0.5 },
+      { x: 0.2, y: 0.8 },
+      { x: 0.8, y: 0.8 },
+    ];
+
+    for (let i = 0; i < numAgents; i++) {
+      const clusterIndex = i % numClusters;
+      const center = clusterCenters[clusterIndex];
+
+      const angle = Math.random() * Math.PI * 2;
+      const r = clusterRadius * Math.sqrt(Math.random());
+
+      data[i * 4 + 0] = center.x + r * Math.cos(angle);
+      data[i * 4 + 1] = center.y + r * Math.sin(angle);
+      data[i * 4 + 2] = Math.random();
+      data[i * 4 + 3] = 1.0;
+    }
+  }
+
+  /**
+   * Initialize agents at center with radially outward headings (explosion effect)
+   */
+  private initializeExplosion(data: Float32Array, numAgents: number) {
+    const centerX = 0.5;
+    const centerY = 0.5;
+    const explosionRadius = 0.02; // Very small initial radius
+
+    for (let i = 0; i < numAgents; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const r = explosionRadius * Math.sqrt(Math.random());
+
+      data[i * 4 + 0] = centerX + r * Math.cos(angle);
+      data[i * 4 + 1] = centerY + r * Math.sin(angle);
+
+      // Heading points radially outward from center
+      const headingAngle = angle / (Math.PI * 2);
+      data[i * 4 + 2] = headingAngle;
+      data[i * 4 + 3] = 1.0;
+    }
+  }
+
+  /**
+   * Initialize agents in ring formation with inward-facing headings
+   */
+  private initializeInwardRing(data: Float32Array, numAgents: number) {
+    const centerX = 0.5;
+    const centerY = 0.5;
+    const ringRadius = 0.4; // Large ring near edges
+
+    for (let i = 0; i < numAgents; i++) {
+      // Evenly distribute around circle
+      const angle = (i / numAgents) * Math.PI * 2;
+
+      data[i * 4 + 0] = centerX + ringRadius * Math.cos(angle);
+      data[i * 4 + 1] = centerY + ringRadius * Math.sin(angle);
+
+      // Heading points toward center (opposite of position angle)
+      const headingAngle = (angle + Math.PI) / (Math.PI * 2);
+      data[i * 4 + 2] = headingAngle % 1.0;
+      data[i * 4 + 3] = 1.0;
+    }
   }
 
   agentSimulationStep(time: number, dt: number) {
@@ -425,15 +585,15 @@ export class Physarum {
    * Reset the simulation to initial state
    * Preserves user-configured control values
    */
-  public resetSimulation() {
+  public resetSimulation(pattern: InitializationPattern = "circle") {
     // Dispose old agent texture to prevent memory leak
     const oldTexture = this.agentSimMaterial.uniforms.uAgentState.value;
     if (oldTexture) {
       oldTexture.dispose();
     }
 
-    // Reinitialize agents with fresh random positions
-    const newAgentsTexture = this.initializeAgents();
+    // Reinitialize agents with selected pattern
+    const newAgentsTexture = this.initializeAgents(pattern);
     this.agentSimMaterial.uniforms.uAgentState.value = newAgentsTexture;
 
     // Re-render the initial agent state to agentsRenderTargetA
@@ -450,6 +610,34 @@ export class Physarum {
 
     // Reset time tracking for delta time calculations
     this.lastTime = 0;
+  }
+
+  /**
+   * Button callbacks for initialization patterns
+   * These are called by the control panel when pattern buttons are clicked
+   */
+  public initCircle() {
+    this.resetSimulation("circle");
+  }
+
+  public initRandom() {
+    this.resetSimulation("random");
+  }
+
+  public initSpiral() {
+    this.resetSimulation("spiral");
+  }
+
+  public initClusters() {
+    this.resetSimulation("clusters");
+  }
+
+  public initExplosion() {
+    this.resetSimulation("explosion");
+  }
+
+  public initInwardRing() {
+    this.resetSimulation("inwardRing");
   }
 
   /**

@@ -38,6 +38,38 @@ npm run dev
 
 The application will automatically open in your default browser.
 
+## Deployment
+
+This project is automatically deployed to GitHub Pages when changes are pushed to the main branch.
+
+### Live Demo
+
+The application is available at: `https://i300.github.io/graphics-playground/`
+
+### Deployment Process
+
+The deployment is handled by GitHub Actions (see `.github/workflows/deploy.yml`). When you push to the main branch:
+
+1. The workflow runs `npm run build` to create a production build
+2. The `dist` folder is automatically deployed to GitHub Pages
+3. Your changes are live within a few minutes
+
+### Manual Deployment
+
+If you need to trigger a deployment manually:
+
+1. Go to the Actions tab in the GitHub repository
+2. Select the "Deploy to GitHub Pages" workflow
+3. Click "Run workflow"
+
+### GitHub Pages Setup (First Time)
+
+To enable GitHub Pages for your repository:
+
+1. Go to Settings > Pages in your GitHub repository
+2. Under "Build and deployment", select "GitHub Actions" as the source
+3. The workflow will run automatically on the next push to main
+
 ## Project Structure
 
 ```

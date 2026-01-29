@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import glsl from "vite-plugin-glsl";
 
 export default defineConfig({
+  base: "/graphics-playground/", // GitHub Pages deployment path
   plugins: [
     glsl({
       include: ["**/*.glsl", "**/*.vert", "**/*.frag", "**/*.vs", "**/*.fs"],

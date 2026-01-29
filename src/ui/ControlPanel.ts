@@ -185,7 +185,7 @@ export class ControlPanel {
     // Determine the callback: use explicit callback or look for method on example
     const callback =
       config.callback ||
-      (this.currentExample?.[config.property]?.bind(this.currentExample));
+      this.currentExample?.[config.property]?.bind(this.currentExample);
 
     if (!callback) {
       console.warn(`Button callback not found for ${config.property}`);
